@@ -161,6 +161,34 @@ class TestExpenseClaim(HRMSTestSuite):
 		expense_claim2.load_from_db()
 		self.assertEqual(expense_claim2.status, "Paid")
 
+	def test_other_employee_advances_link_with_claim(self):
+		from hrms.hr.doctype.employee_advance.test_employee_advance import make_employee_advance
+
+		payable_account = get_payable_account("_Test Company")
+
+		employee = make_employee("test_employee@employee.advance", "_Test Company")
+		advance = make_employee_advance(employee)
+
+		employee_with_no_advance = make_employee("test_employee@not-employee.advance", "_Test Company")
+		claim_with_no_advance = make_expense_claim(
+			payable_account,
+			1000,
+			1000,
+			"_Test Company",
+			"Travel Expenses - _TC",
+			do_not_submit=True,
+			employee=employee_with_no_advance,
+		)
+		claim_with_no_advance.save()
+
+		claim_with_no_advance.append(
+			"advances",
+			{
+				"employee_advance": advance.name,
+			},
+		)
+		self.assertRaises(frappe.ValidationError, claim_with_no_advance.save)
+
 	def test_expense_claim_against_fully_paid_advances(self):
 		from hrms.hr.doctype.employee_advance.test_employee_advance import (
 			get_advances_for_claim,
@@ -476,11 +504,9 @@ class TestExpenseClaim(HRMSTestSuite):
 			create_driver,
 			create_vehicle,
 		)
-		from erpnext.tests.utils import create_test_contact_and_address
 
 		driver = create_driver()
 		create_vehicle()
-		create_test_contact_and_address()
 		address = create_address(driver)
 
 		delivery_trip = create_delivery_trip(driver, address, company="_Test Company")
@@ -563,10 +589,11 @@ class TestExpenseClaim(HRMSTestSuite):
 	def test_repost(self):
 		# Update repost settings
 		allowed_types = ["Expense Claim"]
-		repost_settings = frappe.get_doc("Repost Accounting Ledger Settings")
-		for x in allowed_types:
-			repost_settings.append("allowed_types", {"document_type": x, "allowed": True})
-		repost_settings.save()
+		accounts_settings = frappe.get_doc("Accounts Settings")
+		for doctype in allowed_types:
+			if doctype not in [x.document_type for x in accounts_settings.repost_allowed_types]:
+				accounts_settings.append("repost_allowed_types", {"document_type": doctype})
+		accounts_settings.save()
 
 		payable_account = get_payable_account(company_name)
 		taxes = generate_taxes(rate=10)
