@@ -92,6 +92,7 @@ def get_hr_settings() -> dict:
 	return frappe._dict(
 		allow_employee_checkin_from_mobile_app=settings.allow_employee_checkin_from_mobile_app,
 		allow_geolocation_tracking=settings.allow_geolocation_tracking,
+		prevent_self_leave_approval=settings.prevent_self_leave_approval,
 	)
 
 
@@ -506,6 +507,7 @@ def get_expense_claims(
 		"`tabExpense Claim`.posting_date",
 		"`tabExpense Claim`.employee",
 		"`tabExpense Claim`.employee_name",
+		"`tabExpense Claim`.currency",
 		"`tabExpense Claim`.approval_status",
 		"`tabExpense Claim`.status",
 		"`tabExpense Claim`.expense_approver",
@@ -654,11 +656,6 @@ def get_employee_advance_balance() -> list[dict]:
 	).run(as_dict=True)
 
 	return advances
-
-
-@frappe.whitelist()
-def get_advance_account(company: str) -> str | None:
-	return frappe.db.get_value("Company", company, "default_employee_advance_account", cache=True)
 
 
 # Company
